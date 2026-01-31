@@ -13,7 +13,8 @@ BiblioDrift is a cozy, visual-first book discovery platform designed to make fin
 - **Interactive 3D Books**: Hover to pull, click to flip and **expand**.
 - **Virtual Library**: Realistic wooden shelves to save your "Want to Read", "Currently Reading", and "Favorites" list (Persistent via LocalStorage).
 - **Glassmorphism UI**: A soothing, modern interface that floats above the content.
-- **AI-Powered Recommendations** (Planned): All book recommendations are purely AI-driven based on "vibes".
+- **AI-Powered Recommendations** (Planned): All book recommendations must be generated exclusively by AI.  
+     No manual curation, static lists, or hardcoded recommendations are permitted.
 - **Dynamic Popups**: Click a book to see an expanded view with AI-generated blurbs.
 - **Curated Tables**: Horizontal scrolling lists based on moods like "Monsoon Reads".
 
@@ -23,6 +24,20 @@ BiblioDrift is a cozy, visual-first book discovery platform designed to make fin
 - **Storage**: LocalStorage (MVP), PostgreSQL (Planned)
 - **Backend (Planned)**: Python Flask
 - **AI (Planned)**: LLM integration for "Bookseller Notes"
+
+## 🤖 AI Recommendation Policy
+
+BiblioDrift follows a **strict AI-only recommendation model**.
+
+- All recommendations must be generated dynamically using AI/LLMs.
+- Manual curation, editor picks, static mood lists, or hardcoded book mappings are **not allowed**.
+- AI outputs should be based on abstract signals such as:
+  - Vibes
+  - Mood descriptors
+  - Emotional tone
+  - Reader intent
+
+This ensures discovery stays organic, scalable, and aligned with BiblioDrift’s philosophy of vibe-first exploration.
 
 ## 📦 Installation & Setup
 
