@@ -3,7 +3,7 @@
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from ai_service import generate_book_note, get_ai_recommendations, get_book_mood_tags_safe
+from ai_service import generate_book_note, get_ai_recommendations, get_book_mood_tags_safe, llm_service
 
 # Try to import enhanced mood analysis
 try:
@@ -11,7 +11,8 @@ try:
     MOOD_ANALYSIS_AVAILABLE = True
 except ImportError:
     MOOD_ANALYSIS_AVAILABLE = False
-    print("Mood analysis package not available - some endpoints will be disabled")
+    import logging
+    logging.getLogger(__name__).warning("Mood analysis package not available - some endpoints will be disabled")
 
 app = Flask(__name__)
 CORS(app)
@@ -137,9 +138,16 @@ def health_check():
     """Health check endpoint."""
     return jsonify({
         "status": "healthy",
-        "service": "BiblioDrift Mood Analysis API",
-        "version": "1.0.0",
-        "mood_analysis_available": MOOD_ANALYSIS_AVAILABLE
+        "service": "BiblioDrift AI Service",
+        "version": "2.0.0",
+        "features": {
+            "mood_analysis_available": MOOD_ANALYSIS_AVAILABLE,
+            "llm_service_available": llm_service.is_available(),
+            "openai_configured": llm_service.openai_client is not None,
+            "groq_configured": llm_service.groq_client is not None,
+            "gemini_configured": llm_service.gemini_model is not None,
+            "preferred_llm": llm_service.preferred_llm
+        }
     })
 
 if __name__ == '__main__':
