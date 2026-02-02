@@ -4,7 +4,7 @@
  */
 
 const API_BASE = 'https://www.googleapis.com/books/v1/volumes';
-const MOOD_API_BASE = 'http://localhost:5000/api/v1';
+const MOOD_API_BASE = 'http://localhost:5001/api/v1';
 
 class BookRenderer {
     constructor() {
