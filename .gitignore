@@ -1,1 +1,5 @@
 GITHUB_ISSUES.md
+
+# Mood analysis cache files
+mood_analysis/mood_cache.json
+*.cache

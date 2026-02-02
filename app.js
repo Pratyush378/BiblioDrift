@@ -1,21 +1,37 @@
 /**
- * BiblioDrift Core Logic
- * Handles 3D rendering, API fetching, and LocalStorage management.
+ * BiblioDrift Core Logic with GoodReads Mood Analysis
+ * Handles 3D rendering, API fetching, mood analysis, and LocalStorage management.
  */
 
 const API_BASE = 'https://www.googleapis.com/books/v1/volumes';
+const MOOD_API_BASE = 'http://localhost:5000/api/v1';
 
 class BookRenderer {
     constructor() {
         this.libraryManager = new LibraryManager();
+        this.moodAnalyzer = new MoodAnalyzer();
     }
 
-    createBookElement(bookData) {
+    async createBookElement(bookData) {
         const { id, volumeInfo } = bookData;
         const title = volumeInfo.title || "Untitled";
         const authors = volumeInfo.authors ? volumeInfo.authors.join(", ") : "Unknown Author";
         const thumb = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'https://via.placeholder.com/128x196?text=No+Cover';
         const description = volumeInfo.description ? volumeInfo.description.substring(0, 100) + "..." : "A mysterious tome waiting to be opened.";
+
+        // Try to get mood analysis for this book
+        let vibe = this.generateVibe(description);
+        let moodTags = [];
+        
+        try {
+            const moodData = await this.moodAnalyzer.getBookMood(title, authors);
+            if (moodData && moodData.success) {
+                vibe = moodData.mood_analysis.bibliodrift_vibe || vibe;
+                moodTags = moodData.mood_analysis.primary_moods || [];
+            }
+        } catch (error) {
+            console.log('Mood analysis not available, using fallback vibe');
+        }
 
         // Randomize spine color slightly for variety
         const spineColors = ['#5D4037', '#4E342E', '#3E2723', '#2C2420', '#8D6E63'];
@@ -25,11 +41,17 @@ class BookRenderer {
         const scene = document.createElement('div');
         scene.className = 'book-scene';
 
+        // Generate mood tags HTML
+        const moodTagsHTML = moodTags.length > 0 
+            ? `<div class="mood-tags">${moodTags.slice(0, 2).map(tag => `<span class="mood-tag mood-${tag.mood}">${tag.mood}</span>`).join('')}</div>`
+            : '';
+
         // Structure
         scene.innerHTML = `
             <div class="book" data-id="${id}">
                 <div class="book__face book__face--front">
                     <img src="${thumb.replace('http:', 'https:')}" alt="${title}">
+                    ${moodTagsHTML}
                 </div>
                 <div class="book__face book__face--spine" style="background: ${randomSpine}"></div>
                 <div class="book__face book_face--right"></div>
@@ -37,11 +59,19 @@ class BookRenderer {
                     <div>
                         <div style="font-weight: bold; font-size: 0.9rem; margin-bottom: 0.5rem;">${title}</div>
                         <div class="handwritten-note">
-                            Bookseller's Note: "${this.generateVibe(description)}"
+                            Bookseller's Note: "${vibe}"
                         </div>
+                        ${moodTags.length > 0 ? `
+                        <div class="mood-analysis">
+                            <small>Mood Analysis:</small>
+                            <div class="mood-tags-back">
+                                ${moodTags.slice(0, 3).map(tag => `<span class="mood-tag-small">${tag.mood}</span>`).join('')}
+                            </div>
+                        </div>` : ''}
                     </div>
                     <div class="book-actions">
                         <button class="btn-icon add-btn" title="Add to Library"><i class="fa-regular fa-heart"></i></button>
+                        <button class="btn-icon mood-btn" title="Analyze Mood" onclick="event.stopPropagation(); this.closest('.book-scene').querySelector('.book-renderer').showMoodAnalysis('${title}', '${authors}')"><i class="fa-solid fa-brain"></i></button>
                         <button class="btn-icon" title="Flip Back" onclick="event.stopPropagation(); this.closest('.book').classList.remove('flipped')"><i class="fa-solid fa-rotate-left"></i></button>
                     </div>
                 </div>
@@ -49,8 +79,12 @@ class BookRenderer {
             <div class="glass-overlay">
                 <strong>${title}</strong><br>
                 <small>${authors}</small>
+                ${moodTags.length > 0 ? `<div class="glass-mood-tags">${moodTags.slice(0, 2).map(tag => `<span class="glass-mood-tag">${tag.mood}</span>`).join('')}</div>` : ''}
             </div>
         `;
+
+        // Store reference for mood analysis
+        scene.querySelector('.book-scene').bookRenderer = this;
 
         // Interaction: Flip
         const bookEl = scene.querySelector('.book');
@@ -72,8 +106,141 @@ class BookRenderer {
         return scene;
     }
 
+    async showMoodAnalysis(title, author) {
+        try {
+            const moodData = await this.moodAnalyzer.analyzeMood(title, author);
+            if (moodData && moodData.success) {
+                this.displayMoodModal(title, moodData.mood_analysis);
+            } else {
+                alert('Mood analysis not available for this book.');
+            }
+        } catch (error) {
+            console.error('Error showing mood analysis:', error);
+            alert('Error loading mood analysis.');
+        }
+    }
+
+    displayMoodModal(title, moodAnalysis) {
+        const modal = document.createElement('div');
+        modal.className = 'mood-modal';
+        
+        // Create modal content safely using DOM methods
+        const content = document.createElement('div');
+        content.className = 'mood-modal-content';
+        
+        // Header
+        const header = document.createElement('div');
+        header.className = 'mood-modal-header';
+        
+        const headerTitle = document.createElement('h3');
+        headerTitle.textContent = `Mood Analysis: ${title}`;
+        
+        const closeButton = document.createElement('button');
+        closeButton.className = 'close-modal';
+        closeButton.textContent = '×';
+        
+        header.appendChild(headerTitle);
+        header.appendChild(closeButton);
+        
+        // Body
+        const body = document.createElement('div');
+        body.className = 'mood-modal-body';
+        
+        // Overall Sentiment section
+        const overallSection = document.createElement('div');
+        overallSection.className = 'mood-section';
+        
+        const overallHeading = document.createElement('h4');
+        overallHeading.textContent = 'Overall Sentiment';
+        
+        const sentimentBar = document.createElement('div');
+        sentimentBar.className = 'sentiment-bar';
+        
+        const sentimentFill = document.createElement('div');
+        sentimentFill.className = 'sentiment-fill';
+        const compoundScore = moodAnalysis.overall_sentiment?.compound_score || 0;
+        sentimentFill.style.width = `${(compoundScore + 1) * 50}%`;
+        
+        sentimentBar.appendChild(sentimentFill);
+        
+        const moodDescription = document.createElement('p');
+        moodDescription.textContent = moodAnalysis.mood_description || '';
+        
+        overallSection.appendChild(overallHeading);
+        overallSection.appendChild(sentimentBar);
+        overallSection.appendChild(moodDescription);
+        
+        // Primary Moods section
+        const primarySection = document.createElement('div');
+        primarySection.className = 'mood-section';
+        
+        const primaryHeading = document.createElement('h4');
+        primaryHeading.textContent = 'Primary Moods';
+        
+        const moodTagsContainer = document.createElement('div');
+        moodTagsContainer.className = 'mood-tags-large';
+        
+        const primaryMoods = Array.isArray(moodAnalysis.primary_moods) ? moodAnalysis.primary_moods : [];
+        primaryMoods.forEach(mood => {
+            const span = document.createElement('span');
+            const moodName = String(mood.mood || '');
+            span.className = `mood-tag-large mood-${moodName}`;
+            span.textContent = `${moodName} (${mood.confidence || mood.frequency || 0})`;
+            moodTagsContainer.appendChild(span);
+        });
+        
+        primarySection.appendChild(primaryHeading);
+        primarySection.appendChild(moodTagsContainer);
+        
+        // BiblioDrift Vibe section
+        const vibeSection = document.createElement('div');
+        vibeSection.className = 'mood-section';
+        
+        const vibeHeading = document.createElement('h4');
+        vibeHeading.textContent = 'BiblioDrift Vibe';
+        
+        const vibeQuote = document.createElement('div');
+        vibeQuote.className = 'vibe-quote';
+        vibeQuote.textContent = `"${moodAnalysis.bibliodrift_vibe || ''}"`;
+        
+        vibeSection.appendChild(vibeHeading);
+        vibeSection.appendChild(vibeQuote);
+        
+        // Reviews analyzed section
+        const reviewsSection = document.createElement('div');
+        reviewsSection.className = 'mood-section';
+        
+        const reviewsInfo = document.createElement('small');
+        reviewsInfo.textContent = `Based on ${moodAnalysis.total_reviews_analyzed || 0} GoodReads reviews`;
+        
+        reviewsSection.appendChild(reviewsInfo);
+        
+        // Assemble everything
+        body.appendChild(overallSection);
+        body.appendChild(primarySection);
+        body.appendChild(vibeSection);
+        body.appendChild(reviewsSection);
+        
+        content.appendChild(header);
+        content.appendChild(body);
+        modal.appendChild(content);
+
+        document.body.appendChild(modal);
+
+        // Close modal functionality
+        closeButton.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+    }
+
     generateVibe(text) {
-        // Simple heuristic to mock "AI" vibes
+        // Simple heuristic to mock "AI" vibes (fallback)
         const vibes = [
             "Perfect for a rainy afternoon.",
             "Smells like old paper and adventure.",
@@ -94,13 +261,48 @@ class BookRenderer {
 
             if (data.items) {
                 container.innerHTML = '';
-                data.items.forEach(book => {
-                    container.appendChild(this.createBookElement(book));
-                });
+                for (const book of data.items) {
+                    const bookElement = await this.createBookElement(book);
+                    container.appendChild(bookElement);
+                }
             }
         } catch (err) {
             console.error("Failed to fetch books", err);
             container.innerHTML = '<p>The shelves are dusty... (API Error)</p>';
+        }
+    }
+}
+
+class MoodAnalyzer {
+    async getBookMood(title, author) {
+        try {
+            const response = await fetch(`${MOOD_API_BASE}/mood-tags`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, author })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error fetching mood tags:', error);
+            return null;
+        }
+    }
+
+    async analyzeMood(title, author) {
+        try {
+            const response = await fetch(`${MOOD_API_BASE}/analyze-mood`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, author })
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('Error analyzing mood:', error);
+            return null;
         }
     }
 }
