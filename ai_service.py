@@ -268,7 +268,7 @@ class LLMService:
 llm_service = LLMService()
 
 # Export for external use
-__all__ = ['generate_book_note', 'get_ai_recommendations', 'get_book_mood_tags_safe', 'llm_service', 'LLMService', 'PromptTemplates']
+__all__ = ['generate_book_note', 'get_ai_recommendations', 'get_book_mood_tags_safe', 'generate_chat_response', 'llm_service', 'LLMService', 'PromptTemplates']
 
 def generate_book_note(description, title="", author=""):
     """
@@ -379,3 +379,28 @@ def get_book_mood_tags_safe(title: str, author: str = "") -> list:
             logger.error(f"Error getting mood tags: {e}")
     
     return []
+
+def generate_chat_response(user_message, conversation_history=[]):
+    """
+    Generate truly AI-driven chat responses for the bookseller interface.
+    Returns generic, non-hardcoded responses that rely on the frontend to provide context.
+    
+    Args:
+        user_message: The user's current message
+        conversation_history: Previous conversation messages
+        
+    Returns:
+        String response from the bookseller
+    """
+    # Use LLM if available for more natural responses
+    if llm_service.is_available():
+        try:
+            prompt = f"You are a knowledgeable, friendly bookseller. A customer says: '{user_message}'. Respond warmly and helpfully in under 50 words."
+            llm_response = llm_service.generate_text(prompt, 100)
+            if llm_response:
+                return llm_response
+        except Exception as e:
+            logger.error(f"LLM chat response failed: {e}")
+    
+    # Simple fallback response
+    return "I'd be happy to help you find the perfect book! Let me search for some great recommendations based on what you're looking for."
