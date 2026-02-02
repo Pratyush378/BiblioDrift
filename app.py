@@ -189,8 +189,22 @@ def handle_chat():
         if not user_message:
             return jsonify({"error": "Message is required"}), 400
         
+        # Validate and limit conversation history
+        if not isinstance(conversation_history, list):
+            conversation_history = []
+        
+        # Limit history size for security and performance
+        conversation_history = conversation_history[-10:]  # Only keep last 10 messages
+        
+        # Validate each message in history
+        validated_history = []
+        for msg in conversation_history:
+            if isinstance(msg, dict) and 'type' in msg and 'content' in msg:
+                if len(str(msg.get('content', ''))) <= 1000:  # Limit message size
+                    validated_history.append(msg)
+        
         # Generate contextual response based on conversation history
-        response = generate_chat_response(user_message, conversation_history)
+        response = generate_chat_response(user_message, validated_history)
         
         # Try to get book recommendations based on the message
         recommendations = get_ai_recommendations(user_message)
@@ -222,6 +236,7 @@ if __name__ == '__main__':
     import os
     debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.getenv('PORT', 5000))
+    host = os.getenv('FLASK_HOST', '127.0.0.1')  # Default to localhost for security
     
     if debug_mode:
         print("--- BIBLIODRIFT MOOD ANALYSIS SERVER STARTING ON PORT", port, "---")
@@ -236,4 +251,4 @@ if __name__ == '__main__':
         print("  POST /api/v1/chat - Chat with bookseller")
         print("  GET  /api/v1/health - Health check")
     
-    app.run(debug=debug_mode, port=port, host='0.0.0.0')
+    app.run(debug=debug_mode, port=port, host=host)

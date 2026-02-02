@@ -66,7 +66,7 @@ class AIBookService:
 - `POST /api/v1/generate-note` - Enhanced note generation (**POST only**)
 - `POST /api/v1/chat` - Chat with bookseller (**POST only**)
 
-**Note**: POST-only endpoints will return 404 when accessed via browser GET requests. This is expected behavior.
+**Note**: POST-only endpoints will return 405 Method Not Allowed when accessed via browser GET requests. This is expected behavior.
 
 ### Frontend Integration
 
@@ -100,7 +100,7 @@ Server runs on `http://localhost:5000`
 
 **Important for Developers**: 
 - Visit `http://localhost:5000/` in your browser to see available API endpoints and usage examples
-- **All mood analysis endpoints are POST-only** - visiting them in browser will return 404 (this is expected)
+- **All mood analysis endpoints are POST-only** - visiting them in browser will return 405 Method Not Allowed (this is expected)
 - Use curl, Postman, or the frontend JavaScript to test the APIs
 
 ### 3. Open Frontend
@@ -218,7 +218,7 @@ self.mood_keywords = {
 **"Mood analysis not available"**
 - Backend server may not be running
 - Check `http://localhost:5000/api/v1/health` (GET request)
-- **Don't visit POST endpoints in browser** - they will show 404 (expected behavior)
+- **Don't visit POST endpoints in browser** - they will return 405 Method Not Allowed (expected behavior)
 - Use curl or the frontend JavaScript to test POST endpoints
 - Verify CORS settings for cross-origin requests
 

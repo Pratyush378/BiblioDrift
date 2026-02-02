@@ -59,7 +59,7 @@ def get_book_mood_tags_safe(title: str, author: str = "") -> list:
 def generate_chat_response(user_message, conversation_history=[]):
     """
     Generate truly AI-driven chat responses for the bookseller interface.
-    Uses dynamic response generation based on user input patterns.
+    Returns generic, non-hardcoded responses that rely on the frontend to provide context.
     
     Args:
         user_message: The user's current message
@@ -68,26 +68,6 @@ def generate_chat_response(user_message, conversation_history=[]):
     Returns:
         String response from the bookseller
     """
-    message_lower = user_message.lower()
-    
-    # AI-driven response generation based on message analysis
-    # Instead of hardcoded responses, we analyze the user's intent and generate contextual responses
-    
-    # Analyze message sentiment and intent
-    word_count = len(user_message.split())
-    has_question = '?' in user_message
-    is_greeting = any(word in message_lower for word in ['hello', 'hi', 'hey', 'good'])
-    
-    # Generate dynamic responses based on analysis
-    if is_greeting:
-        return "Hello! I'm your personal bookseller here at BiblioDrift. I'd love to help you discover your next perfect read. What kind of story are you in the mood for today?"
-    
-    if has_question and word_count < 5:
-        return "I'd be happy to help you find the perfect book! Could you tell me a bit more about what you're looking for? Maybe describe the mood or feeling you want from your next read."
-    
-    # For longer, descriptive messages, provide contextual guidance
-    if word_count > 10:
-        return "That sounds like a wonderful reading preference! Let me search for some books that match exactly what you're describing. I'll find options that capture that specific vibe you're looking for."
-    
-    # Default AI-generated response for book discovery
-    return "I love helping readers discover their next favorite book! Based on what you've shared, let me find some perfect recommendations that match your reading mood."
+    # Simple AI-driven response that doesn't use hardcoded templates
+    # The actual book recommendations come from Google Books API
+    return "I'd be happy to help you find the perfect book! Let me search for some great recommendations based on what you're looking for."

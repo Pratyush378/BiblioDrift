@@ -123,14 +123,14 @@ Tell me what kind of vibe you're looking for - maybe something cozy for a rainy 
     async getBooksellerResponse(userMessage) {
         // First, try to use the dedicated chat endpoint
         try {
-            const chatResponse = await fetch('/api/v1/chat', {
+            const chatResponse = await fetch(`${window.MOOD_API_BASE || 'http://localhost:5001/api/v1'}/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     message: userMessage,
-                    history: this.conversationHistory
+                    history: this.conversationHistory.slice(-5) // Only send last 5 messages for context
                 })
             });
             
@@ -151,7 +151,7 @@ Tell me what kind of vibe you're looking for - maybe something cozy for a rainy 
         
         // Fallback to mood search
         try {
-            const moodResponse = await fetch('/api/v1/mood-search', {
+            const moodResponse = await fetch(`${window.MOOD_API_BASE || 'http://localhost:5001/api/v1'}/mood-search`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -206,30 +206,40 @@ Tell me what kind of vibe you're looking for - maybe something cozy for a rainy 
     
     generateContextualResponse(userQuery, books) {
         const bookCount = books.length;
-        const query = userQuery.toLowerCase();
         
-        // Generate personalized response based on user's request
-        let response = '';
-        
-        if (query.includes('cozy')) {
-            response = `Perfect! I love helping people find cozy reads. Here are ${bookCount} books that should give you those warm, comfortable vibes you're looking for:`;
-        } else if (query.includes('mystery') || query.includes('thriller')) {
-            response = `Excellent choice! Mystery lovers are some of my favorite customers. I've found ${bookCount} intriguing books that should keep you guessing:`;
-        } else if (query.includes('romantic') || query.includes('love')) {
-            response = `Ah, a romantic at heart! I have ${bookCount} beautiful love stories that will make your heart flutter:`;
-        } else if (query.includes('fantasy') || query.includes('magic')) {
-            response = `Wonderful! Fantasy is such an amazing escape. Here are ${bookCount} magical worlds waiting for you to explore:`;
-        } else if (query.includes('sad') || query.includes('cry')) {
-            response = `Sometimes we need a good emotional release through books. I've selected ${bookCount} deeply moving stories:`;
-        } else if (query.includes('funny') || query.includes('humor')) {
-            response = `Everyone needs more laughter! Here are ${bookCount} books that will definitely brighten your day:`;
-        } else {
-            response = `Based on what you're looking for, I've curated ${bookCount} books that I think you'll really enjoy:`;
-        }
-        
+        // If we couldn't find any books, guide the user to refine their request
         if (bookCount === 0) {
-            response = "I'm having trouble finding books for that specific request right now. Could you try describing what kind of mood or feeling you're going for? For example, 'something cozy for a rainy day' or 'an exciting adventure story'?";
+            return "I'm having trouble finding books for that specific request right now. Could you try describing what kind of mood or feeling you're going for? For example, 'something cozy for a rainy day' or 'an exciting adventure story'?";
         }
+        
+        // Build a contextual, data-driven response using the returned books
+        const titles = books
+            .map(book => {
+                if (book && typeof book.title === 'string' && book.title.trim()) {
+                    return book.title.trim();
+                }
+                if (book && book.volumeInfo && typeof book.volumeInfo.title === 'string' && book.volumeInfo.title.trim()) {
+                    return book.volumeInfo.title.trim();
+                }
+                return null;
+            })
+            .filter(Boolean)
+            .slice(0, 3);
+            
+        let titleSnippet = '';
+        if (titles.length === 1) {
+            titleSnippet = titles[0];
+        } else if (titles.length === 2) {
+            titleSnippet = `${titles[0]} and ${titles[1]}`;
+        } else if (titles.length === 3) {
+            titleSnippet = `${titles[0]}, ${titles[1]}, and ${titles[2]}`;
+        }
+        
+        let response = `I've found ${bookCount} books that match what you're looking for`;
+        if (titleSnippet) {
+            response += `, including ${titleSnippet}`;
+        }
+        response += '.';
         
         return response;
     }
@@ -428,14 +438,61 @@ Tell me what kind of vibe you're looking for - maybe something cozy for a rainy 
         return date.toLocaleDateString();
     }
     
+    /**
+     * Validate and sanitize a single message object loaded from storage.
+     * Ensures expected structure and strips potentially dangerous characters
+     * from the content field.
+     */
+    sanitizeMessage(rawMessage) {
+        if (!rawMessage || typeof rawMessage !== 'object') {
+            return null;
+        }
+        
+        const allowedTypes = ['user', 'bookseller'];
+        let type = typeof rawMessage.type === 'string' ? rawMessage.type : 'user';
+        if (!allowedTypes.includes(type)) {
+            type = 'user';
+        }
+        
+        let content = '';
+        if (typeof rawMessage.content === 'string') {
+            content = rawMessage.content;
+        } else if (rawMessage.content != null) {
+            content = String(rawMessage.content);
+        }
+        
+        // Basic sanitization: remove angle brackets to mitigate HTML/script injection
+        content = content.replace(/[<>]/g, '');
+        
+        let timestamp = Date.now();
+        if (typeof rawMessage.timestamp === 'number' && isFinite(rawMessage.timestamp)) {
+            timestamp = rawMessage.timestamp;
+        } else if (typeof rawMessage.timestamp === 'string') {
+            const parsed = Date.parse(rawMessage.timestamp);
+            if (!isNaN(parsed)) {
+                timestamp = parsed;
+            }
+        }
+        
+        return { type, content, timestamp };
+    }
+    
     loadConversationHistory() {
         try {
             const saved = localStorage.getItem('bibliodrift_chat_history');
             if (saved) {
-                this.conversationHistory = JSON.parse(saved);
-                this.conversationHistory.forEach(message => {
-                    this.renderMessage(message);
-                });
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    const sanitizedMessages = parsed
+                        .map(message => this.sanitizeMessage(message))
+                        .filter(message => message !== null);
+                    this.conversationHistory = sanitizedMessages;
+                    this.conversationHistory.forEach(message => {
+                        this.renderMessage(message);
+                    });
+                } else {
+                    this.conversationHistory = [];
+                }
             }
         } catch (error) {
             this.conversationHistory = [];
