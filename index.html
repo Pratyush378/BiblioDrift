@@ -38,10 +38,22 @@
           <i class="fa-solid fa-search search-icon"></i>
         </div>
         <nav class="nav-links">
-          <a href="index.html" class="active">Discovery</a>
-          <a href="library.html">My Library</a>
-          <a href="chat.html">Chat</a>
-          <a href="auth.html">Sign In</a>
+          <div class="tooltip">
+            <a href="index.html" class="active">Discovery</a>
+            <span class="tooltip-text"><i class="fa-solid fa-wand-magic-sparkles"></i> Explore books</span>
+          </div>
+          <div class="tooltip">
+            <a href="library.html">My Library</a>
+            <span class="tooltip-text"><i class="fa-solid fa-book"></i> My Library</span>
+          </div>
+          <div class="tooltip">
+            <a href="chat.html">Chat</a>
+            <span class="tooltip-text"><i class="fa-solid fa-comments"></i> Chat</span>
+          </div>
+          <div class="tooltip">
+            <a href="auth.html">Sign In</a>
+            <span class="tooltip-text"><i class="fa-solid fa-key"></i> Access account</span>
+          </div>
         </nav>
         <button id="themeToggle" class="btn-icon" title="Toggle Theme">
           <i class="fa-solid fa-moon"></i>
@@ -183,5 +195,6 @@
     </dialog>
 
     <script src="app.js"></script>
+    <script src="script/header-scroll.js"></script>
   </body>
 </html>
